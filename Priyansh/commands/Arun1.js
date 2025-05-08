@@ -42,7 +42,7 @@ module.exports.handleEvent = function({ api, event }) {
 🔮 𝑬𝒏𝒕𝒆𝒓 𝑻𝒉𝒆 𝑭𝒖𝒕𝒖𝒓𝒆, 𝑵𝒐𝒘. ✨
 ━━━━━━━━━━━━━━━━━━━━━━━
 `,
-			attachment: fs.createReadStream(__dirname + `/noprefix/owner.jpg`)
+			attachment: fs.createReadStream(__dirname + `/noprefix/https://i.postimg.cc/qvFxjpDT/1746732265902.jpg`)
 		};
 
 		api.sendMessage(msg, threadID, messageID);
