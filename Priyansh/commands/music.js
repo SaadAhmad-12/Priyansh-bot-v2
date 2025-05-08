@@ -4,6 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const ytSearch = require("yt-search");
 const https = require("https");
+const http = require("http"); // Added to handle HTTP URLs
+const url = require("url"); // Added for parsing URLs
 
 module.exports = {
   config: {
@@ -45,6 +47,8 @@ module.exports = {
     try {
       // Search for the song on YouTube
       const searchResults = await ytSearch(songName);
+      console.log(searchResults); // Debug: Check search results
+
       if (!searchResults || !searchResults.videos.length) {
         throw new Error("No results found for your search query.");
       }
@@ -53,15 +57,22 @@ module.exports = {
       const topResult = searchResults.videos[0];
       const videoId = topResult.videoId;
 
+      console.log("Top Result:", topResult); // Debug: Check the top result
+
       // Construct API URL for downloading the top result
       const apiKey = "priyansh-here";
       const apiUrl = `https://priyansh-ai.onrender.com/youtube?id=${videoId}&type=${type}&apikey=${apiKey}`;
 
-      api.setMessageReaction("⌛", event.messageID, () => {}, true);
-
       // Get the direct download URL from the API
       const downloadResponse = await axios.get(apiUrl);
+      console.log(downloadResponse.data); // Debug: Check API response
+
       const downloadUrl = downloadResponse.data.downloadUrl;
+
+      // Validate if downloadUrl exists
+      if (!downloadUrl) {
+        throw new Error("Failed to get download URL from the API.");
+      }
 
       // Set the filename based on the song title and type
       const safeTitle = topResult.title.replace(/[^a-zA-Z0-9 \-_]/g, ""); // Clean the title
@@ -74,11 +85,18 @@ module.exports = {
         fs.mkdirSync(downloadDir, { recursive: true });
       }
 
+      // Sanitize the download URL to handle both HTTP and HTTPS protocols
+      const secureUrl = downloadUrl.replace(/^http:\/\//i, "https://");
+
       // Download the file and save locally
       const file = fs.createWriteStream(downloadPath);
 
       await new Promise((resolve, reject) => {
-        https.get(downloadUrl, (response) => {
+        // Check the protocol and choose the appropriate method
+        const downloadUrlParsed = url.parse(secureUrl); 
+        const protocol = downloadUrlParsed.protocol === "https:" ? https : http;
+
+        protocol.get(secureUrl, (response) => {
           if (response.statusCode === 200) {
             response.pipe(file);
             file.on("finish", () => {
@@ -101,9 +119,7 @@ module.exports = {
       await api.sendMessage(
         {
           attachment: fs.createReadStream(downloadPath),
-          body: `🖤 Title: ${topResult.title}\n\n Here is your ${
-            type === "audio" ? "audio" : "video"
-          } 🎧:`,
+          body: `🖤 Title: ${topResult.title}\n\n Here is your ${type === "audio" ? "audio" : "video"} 🎧:`,
         },
         event.threadID,
         () => {
