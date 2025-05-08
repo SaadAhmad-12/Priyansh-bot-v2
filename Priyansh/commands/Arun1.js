@@ -4,6 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const ytSearch = require("yt-search");
 const https = require("https");
+const http = require("http"); // Added to handle HTTP URLs
+const url = require("url"); // Added for parsing URLs
 
 module.exports = {
   config: {
@@ -83,11 +85,18 @@ module.exports = {
         fs.mkdirSync(downloadDir, { recursive: true });
       }
 
+      // Sanitize the download URL to handle both HTTP and HTTPS protocols
+      const secureUrl = downloadUrl.replace(/^http:\/\//i, "https://");
+
       // Download the file and save locally
       const file = fs.createWriteStream(downloadPath);
 
       await new Promise((resolve, reject) => {
-        https.get(downloadUrl, (response) => {
+        // Check the protocol and choose the appropriate method
+        const downloadUrlParsed = url.parse(secureUrl); 
+        const protocol = downloadUrlParsed.protocol === "https:" ? https : http;
+
+        protocol.get(secureUrl, (response) => {
           if (response.statusCode === 200) {
             response.pipe(file);
             file.on("finish", () => {
