@@ -10,8 +10,8 @@ module.exports = {
     name: "tiktok",
     version: "1.0.0",
     hasPermssion: 0,
-    credits: "SAAD AHMAD",
-    description: "Download and send TikTok video using a link",
+    credits: "Modified by ChatGPT",
+    description: "Download and send TikTok video without watermark",
     commandCategory: "Media",
     usages: "[TikTok video link]",
     cooldowns: 5,
@@ -36,15 +36,15 @@ module.exports = {
     );
 
     try {
-      // Replace this with a real API that gives a direct downloadable URL
-      const apiEndpoint = `https://api.tiklydown.me/api/download?url=${encodeURIComponent(tiktokUrl)}`;
+      // GoDownloader API endpoint
+      const apiUrl = `https://godownloader.com/api/tiktok-no-watermark-free?url=${encodeURIComponent(tiktokUrl)}&key=godownloader.com`;
 
-      const response = await axios.get(apiEndpoint);
-      if (!response.data || !response.data.video || !response.data.video.nowm) {
+      const response = await axios.get(apiUrl);
+      if (!response.data || !response.data.video) {
         throw new Error("❌ Could not retrieve the download link.");
       }
 
-      const videoUrl = response.data.video.nowm;
+      const videoUrl = response.data.video;
 
       const parsed = url.parse(videoUrl);
       const protocol = parsed.protocol === "https:" ? https : http;
