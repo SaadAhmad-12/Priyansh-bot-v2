@@ -1,50 +1,51 @@
-module.exports.config = {
-	name: "weather",
-	version: "1.0.1",
-	hasPermssion: 0,
-	credits: "𝐏𝐫𝐢𝐲𝐚𝐧𝐬𝐡 𝐑𝐚𝐣𝐩𝐮𝐭",
-	description: "See weather information in the area",
-	commandCategory: "other",
-	usages: "[Location]",
-	cooldowns: 5,
-	dependencies: {
-		"moment-timezone": "",
-		"request": ""
-	},
-	envConfig: {
-		"OPEN_WEATHER": "b7f1db5959a1f5b2a079912b03f0cd96"
-	}
+const axios = require("axios");
+
+module.exports = {
+  config: {
+    name: "weather",
+    version: "1.0.0",
+    hasPermission: 0,
+    credits: "Saad Ahmad",
+    description: "Get the current weather of a city.",
+    commandCategory: "Information",
+    usages: "[cityName]",
+    cooldowns: 5,
+  },
+
+  run: async function ({ api, event, args }) {
+    const city = args.join(" "); // Get city name from command arguments
+    if (!city) {
+      return api.sendMessage("Please provide a city name. Example: `/weather London`", event.threadID);
+    }
+
+    const apiKey = "25f94860d0d20fcc6e90c003e18c19e4"; // Your OpenWeatherMap API Key
+    const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+
+    try {
+      const response = await axios.get(url);
+      const data = response.data;
+
+      // Extract weather information
+      const cityName = data.name;
+      const country = data.sys.country;
+      const temperature = data.main.temp;
+      const weatherDescription = data.weather[0].description;
+      const humidity = data.main.humidity;
+      const windSpeed = data.wind.speed;
+
+      // Format and send the weather information
+      const weatherMessage = `
+      📍 City: ${cityName}, ${country}
+      🌡 Temperature: ${temperature}°C
+      🌤 Weather: ${weatherDescription}
+      💧 Humidity: ${humidity}%
+      🌬 Wind Speed: ${windSpeed} m/s
+      `;
+
+      api.sendMessage(weatherMessage, event.threadID);
+    } catch (error) {
+      console.error(error);
+      api.sendMessage("Could not fetch the weather for this location. Please try again later.", event.threadID);
+    }
+  },
 };
-
-module.exports.languages = {
-
-	"en": {
-		"locationNotExist": "Can't find %1.",
-		"returnResult": "🌡 Temp: %1℃\n🌡 Feels like: %2℃\n☁️ Sky: %3\n💦 Humidity: %4%\n💨 Wind speed: %5km/h\n🌅 Sun rises: %6\n🌄 Sun sets: %7"
-	}
-}
-
-module.exports.run = async ({ api, event, args, getText }) => {
-	const request = global.nodemodule["request"];
-	const moment = global.nodemodule["moment-timezone"];
-	const { throwError } = global.utils;
-	const { threadID, messageID } = event;
-	
-	var city = args.join(" ");
-	if (city.length == 0) return throwError(this.config.name, threadID, messageID);
-	return request(encodeURI("https://api.openweathermap.org/data/2.5/weather?q=" + city + "&appid=" + global.configModule[this.config.name].OPEN_WEATHER + "&units=metric&lang=" + global.config.language), (err, response, body) => {
-		if (err) throw err;
-		var weatherData = JSON.parse(body);
-		if (weatherData.cod !== 200) return api.sendMessage(getText("locationNotExist", city), threadID, messageID);
-		var sunrise_date = moment.unix(weatherData.sys.sunrise).tz("Asia/Ho_Chi_Minh");
-		var sunset_date = moment.unix(weatherData.sys.sunset).tz("Asia/Ho_Chi_Minh");
-		api.sendMessage({
-			body: getText("returnResult", weatherData.main.temp, weatherData.main.feels_like, weatherData.weather[0].description, weatherData.main.humidity, weatherData.wind.speed, sunrise_date.format('HH:mm:ss'), sunset_date.format('HH:mm:ss')),
-			location: {
-				latitude: weatherData.coord.lat,
-				longitude: weatherData.coord.lon,
-				current: true
-			},
-		}, threadID, messageID);
-	});
-}
