@@ -1,34 +1,28 @@
-const fetch = require("node-fetch");
-
 module.exports = {
   config: {
     name: "joke",
     version: "1.0.0",
     hasPermssion: 0,
-    credits: "OpenAI & JokeAPI",
-    description: "Fetches a random joke",
+    credits: "Priyansh Rajput",
+    description: "Fetches a random joke in Roman Urdu",
     commandCategory: "Fun",
     usages: "joke",
     cooldowns: 5,
   },
 
   run: async function ({ api, event }) {
-    try {
-      // Fetching a random joke from JokeAPI
-      const response = await fetch("https://v2.jokeapi.dev/joke/Any?type=single");
-      const data = await response.json();
+    const jokes = [
+      "Ek aadmi doctor ke paas gaya aur kaha, 'Doctor sahib, mujhe bhoolne ki bimari ho gayi hai.' Doctor ne kaha, 'Kab se?' Aadmi bola, 'Kab se kya?'",
+      "Teacher: Agar tumhare paas 5 aam ho aur tumhare dost tumse 2 aam le lein to tumhare paas kitne aam bachenge? Student: Sir, mujhe aam nahi pasand.",
+      "Agar tumhara dil thoda sa bhi toot jaye, toh ek kaam karo, humara number dial karna. Hum tumhe batayenge ki kaise tumhara dil phir se toot jayega.",
+      "Ek aadmi ke paas aik achha phone tha, doosra banda usse poocha, 'Kahan se liya?' Pehla banda: 'Yaar, yeh toh eik bakra tha!'",
+      "Aaj kal log bhi kitne ajeeb hain, khud ko self-made samajhte hain, lekin jab unka phone gir jata hai, toh sabse pehle ‘Allah ka shukr hai, phone toh bach gaya’ kehte hain."
+    ];
 
-      if (data.error) {
-        throw new Error("Couldn't fetch a joke. Please try again later.");
-      }
+    // Get a random joke
+    const randomJoke = jokes[Math.floor(Math.random() * jokes.length)];
 
-      // If joke is a single line
-      const joke = data.joke ? data.joke : "Sorry, couldn't fetch a joke right now.";
-      
-      // Sending the joke to the group
-      return api.sendMessage(joke, event.threadID);
-    } catch (error) {
-      return api.sendMessage("Sorry, something went wrong while fetching a joke.", event.threadID);
-    }
+    // Send the joke to the group
+    return api.sendMessage(randomJoke, event.threadID);
   }
 };
