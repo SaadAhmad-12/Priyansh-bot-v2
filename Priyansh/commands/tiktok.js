@@ -7,46 +7,42 @@ const url = require("url");
 
 module.exports = {
   config: {
-    name: "tiktok",
-    version: "1.0.0",
+    name: "tiktok-autodetect",
+    version: "1.0.1",
     hasPermssion: 0,
     credits: "Adapted by ChatGPT",
-    description: "Download TikTok video by sending the link",
+    description: "Auto-download TikTok video when a link is sent",
     commandCategory: "Media",
-    usages: "[TikTok URL]",
-    cooldowns: 5,
+    usages: "[TikTok URL only in message]",
+    cooldowns: 3,
+    isEvent: true // important: this makes it run on every message
   },
 
-  run: async function ({ api, event, args }) {
-    const tiktokUrl = args[0];
+  handleEvent: async function ({ api, event }) {
+    const message = event.body;
+    if (!message) return;
 
-    if (!tiktokUrl || !tiktokUrl.includes("tiktok.com")) {
-      return api.sendMessage(
-        "❌ Please provide a valid TikTok URL.",
-        event.threadID,
-        event.messageID
-      );
-    }
+    const tiktokRegex = /(https?:\/\/(?:www\.)?tiktok\.com\/[^\s]+)/i;
+    const match = message.match(tiktokRegex);
+
+    if (!match) return;
+
+    const tiktokUrl = match[1];
 
     const processingMessage = await api.sendMessage(
       "🔄 Downloading TikTok video. Please wait...",
-      event.threadID,
-      null,
-      event.messageID
+      event.threadID
     );
 
     try {
-      // API for TikTok video download (no watermark)
       const apiUrl = `https://tikwm.com/api/?url=${encodeURIComponent(tiktokUrl)}`;
-
       const response = await axios.get(apiUrl);
 
       if (!response.data || !response.data.data || !response.data.data.play) {
-        throw new Error("Unable to fetch video. The API might be down or the link is invalid.");
+        throw new Error("Unable to fetch video from API.");
       }
 
       const videoUrl = response.data.data.play;
-
       const filename = `tiktok_${Date.now()}.mp4`;
       const downloadDir = path.join(__dirname, "cache");
       const downloadPath = path.join(downloadDir, filename);
@@ -76,8 +72,6 @@ module.exports = {
         });
       });
 
-      api.setMessageReaction("✅", event.messageID, () => {}, true);
-
       await api.sendMessage(
         {
           body: "🎬 Here is your TikTok video:",
@@ -85,18 +79,18 @@ module.exports = {
         },
         event.threadID,
         () => {
-          fs.unlinkSync(downloadPath); // Delete after sending
+          fs.unlinkSync(downloadPath); // cleanup
           api.unsendMessage(processingMessage.messageID);
-        },
-        event.messageID
+        }
       );
     } catch (error) {
       console.error("TikTok download error:", error.message);
       api.sendMessage(
         `❌ Failed to download TikTok video: ${error.message}`,
-        event.threadID,
-        event.messageID
+        event.threadID
       );
     }
   },
+
+  run: () => {} // Not used in event mode
 };
