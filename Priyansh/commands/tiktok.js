@@ -1,76 +1,99 @@
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
+const axios = require("axios");
+const fs = require("fs");
+const path = require("path");
+const https = require("https");
+const http = require("http");
+const url = require("url");
 
 module.exports = {
   config: {
-    name: 'tiktok',
-    version: '1.0.0',
+    name: "tiktok",
+    version: "1.0.0",
     hasPermssion: 0,
-    credits: 'Modified by ChatGPT',
-    description: 'Download and send TikTok video without watermark',
-    commandCategory: 'Media',
-    usages: '[TikTok video link]',
+    credits: "Adapted by ChatGPT",
+    description: "Download TikTok video by sending the link",
+    commandCategory: "Media",
+    usages: "[TikTok URL]",
     cooldowns: 5,
   },
 
   run: async function ({ api, event, args }) {
-    const tiktokUrl = args.join(' ');
+    const tiktokUrl = args[0];
 
-    if (!tiktokUrl || !tiktokUrl.includes('tiktok.com')) {
+    if (!tiktokUrl || !tiktokUrl.includes("tiktok.com")) {
       return api.sendMessage(
-        '❌ Please provide a valid TikTok video link.',
+        "❌ Please provide a valid TikTok URL.",
         event.threadID,
         event.messageID
       );
     }
 
-    const processingMsg = await api.sendMessage(
-      '⏳ Downloading TikTok video, please wait...',
+    const processingMessage = await api.sendMessage(
+      "🔄 Downloading TikTok video. Please wait...",
       event.threadID,
       null,
       event.messageID
     );
 
     try {
-      const apiUrl = `https://snapdown.app/api/tiktok?url=${encodeURIComponent(tiktokUrl)}`;
-      const response = await axios.get(apiUrl);
-      const videoUrl = response.data.video_url;
+      // API for TikTok video download (no watermark)
+      const apiUrl = `https://tikwm.com/api/?url=${encodeURIComponent(tiktokUrl)}`;
 
-      if (!videoUrl) {
-        throw new Error('❌ Could not retrieve the download link.');
+      const response = await axios.get(apiUrl);
+
+      if (!response.data || !response.data.data || !response.data.data.play) {
+        throw new Error("Unable to fetch video. The API might be down or the link is invalid.");
       }
 
+      const videoUrl = response.data.data.play;
+
       const filename = `tiktok_${Date.now()}.mp4`;
-      const filePath = path.join(__dirname, 'cache', filename);
-      const writer = fs.createWriteStream(filePath);
+      const downloadDir = path.join(__dirname, "cache");
+      const downloadPath = path.join(downloadDir, filename);
 
-      const videoResponse = await axios.get(videoUrl, { responseType: 'stream' });
-      videoResponse.data.pipe(writer);
+      if (!fs.existsSync(downloadDir)) {
+        fs.mkdirSync(downloadDir, { recursive: true });
+      }
 
-      writer.on('finish', () => {
-        api.sendMessage(
-          {
-            attachment: fs.createReadStream(filePath),
-            body: '🎬 Here is your TikTok video!',
-          },
-          event.threadID,
-          () => {
-            fs.unlinkSync(filePath); // Clean up
-            api.unsendMessage(processingMsg.messageID);
-          },
-          event.messageID
-        );
+      const file = fs.createWriteStream(downloadPath);
+
+      await new Promise((resolve, reject) => {
+        const parsedUrl = url.parse(videoUrl);
+        const protocol = parsedUrl.protocol === "https:" ? https : http;
+
+        protocol.get(videoUrl, (response) => {
+          if (response.statusCode === 200) {
+            response.pipe(file);
+            file.on("finish", () => {
+              file.close(resolve);
+            });
+          } else {
+            reject(new Error(`Failed to download video. Status code: ${response.statusCode}`));
+          }
+        }).on("error", (error) => {
+          fs.unlinkSync(downloadPath);
+          reject(new Error(`Error downloading video: ${error.message}`));
+        });
       });
 
-      writer.on('error', (err) => {
-        fs.unlinkSync(filePath);
-        throw new Error(`❌ Error downloading video: ${err.message}`);
-      });
-    } catch (err) {
-      console.error(err);
+      api.setMessageReaction("✅", event.messageID, () => {}, true);
+
+      await api.sendMessage(
+        {
+          body: "🎬 Here is your TikTok video:",
+          attachment: fs.createReadStream(downloadPath),
+        },
+        event.threadID,
+        () => {
+          fs.unlinkSync(downloadPath); // Delete after sending
+          api.unsendMessage(processingMessage.messageID);
+        },
+        event.messageID
+      );
+    } catch (error) {
+      console.error("TikTok download error:", error.message);
       api.sendMessage(
-        `❌ Error downloading video: ${err.message}`,
+        `❌ Failed to download TikTok video: ${error.message}`,
         event.threadID,
         event.messageID
       );
