@@ -5,7 +5,7 @@ module.exports = {
     name: "weather",
     version: "1.0.0",
     hasPermission: 0,
-    credits: "Saad Ahmad",
+    credits: "Your Name",
     description: "Get the current weather of a city.",
     commandCategory: "Information",
     usages: "[cityName]",
@@ -19,11 +19,16 @@ module.exports = {
     }
 
     const apiKey = "25f94860d0d20fcc6e90c003e18c19e4"; // Your OpenWeatherMap API Key
-    const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+    const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`;
 
     try {
       const response = await axios.get(url);
       const data = response.data;
+
+      // Check if the response contains valid weather data
+      if (!data || !data.main) {
+        throw new Error("Weather data not found.");
+      }
 
       // Extract weather information
       const cityName = data.name;
@@ -44,8 +49,8 @@ module.exports = {
 
       api.sendMessage(weatherMessage, event.threadID);
     } catch (error) {
-      console.error(error);
-      api.sendMessage("Could not fetch the weather for this location. Please try again later.", event.threadID);
+      console.error("Error fetching weather data:", error);
+      api.sendMessage(`Could not fetch the weather for this location. Please try again later. Error: ${error.message}`, event.threadID);
     }
   },
 };
