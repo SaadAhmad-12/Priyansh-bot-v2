@@ -1,27 +1,31 @@
+const API = "https://api.violetics.pw/api/textpro/birthday-roses?apikey=beta&text="
 module.exports.config = {
-	name: "bday",
+	name: "birthday",
 	version: "1.0.0",
 	hasPermssion: 0,
-  credits: "𝐏𝐫𝐢𝐲𝐚𝐧𝐬𝐡 𝐑𝐚𝐣𝐩𝐮𝐭",
-	description: "See admin's birthday",
-  usePrefix: false,
-	commandCategory: "bday",
-	cooldowns: 5
-}
+	credits: "SAAD AHMAD",
+	description: "birthday logo",
+	commandCategory: "text maker",
+	usages: "birthday<text>",
+	cooldowns: 10
+};
+module.exports.run = async function ({ api, event, args,}) {
+    const axios = require("axios");
+    const fs = require("fs-extra");
+    const qs = require("querystring");
+    tukhoa = args.join(" ");
+    (event.type == "message_reply") ? tukhoa = event.messageReply.attachments[0].url: tukhoa = args.join(" ");
+    const pathsave = __dirname + `/cache/banner.png`;
+    let imageBuffer;
+    api.sendMessage("〠ↈ༽𝙆𝙪𝙘𝙝 𝘿𝙚𝙧 𝙍𝙪𝙠𝙤 𝙇𝙤𝙜𝙤 𝙈𝙞𝙡 𝙅𝙖𝙮𝙚𝙜𝙖 𝘼𝙥𝙠𝙤༼ↈ〠", event.threadID, event.messageID);
+    axios.get(`${API}${encodeURI(tukhoa)}`, {responseType: "arraybuffer"}) .then(data => {const imageBuffer = data.data;
+    fs.writeFileSync(pathsave, Buffer.from(imageBuffer));
+    api.sendMessage({body: `ↈ⋈༽𝙔𝙚 𝙇𝙤 𝘼𝙥𝙠𝙖 𝙇𝙤𝙜𝙤༼⋈ↈ`, attachment: fs.createReadStream(pathsave)}, event.threadID, () => fs.unlinkSync(pathsave), event.messageID);}).catch(error => {
 
-module.exports.run =  ({ api, event, args, client, Users, Threads, __GLOBAL, Currencies }) => {
-  const axios = global.nodemodule["axios"];
-  const request = global.nodemodule["request"];
-  const fs = global.nodemodule["fs-extra"];
-    const t = Date.parse("June 27, 2024 00:00:00") - Date.parse(new Date());
-    const seconds = Math.floor( (t/1000) % 60 );
-    const minutes = Math.floor( (t/1000/60) % 60 );
-    const hours = Math.floor( (t/(1000*60*60)) % 24 );
-    const days = Math.floor( t/(1000*60*60*24) );
-    var callback = () => api.sendMessage(
-  {body:`Time left until Admin - Light birthday\n» ${days} days\n ${hours} hours\n ${minutes} minutes\n ${seconds} seconds. «`, attachment: fs.createReadStream(__dirname + "/cache/1.png")}, event.threadID, () => 
-    fs.unlinkSync(__dirname + "/cache/1.png"));  
-      return request(encodeURI(`https://graph.facebook.com/100037743553265/picture?height=720&width=720&access_token=66262`)).pipe(
-fs.createWriteStream(__dirname+'/cache/1.png')).on('close',() => callback());
-    
-      };
+          
+            let err;
+            if (error.response) err = JSON.parse(error.response.data.toString());
+            else err = error;
+            return api.sendMessage(`Error! An error occurred. Please try again later ${err.error} ${err.message}`, event.threadID, event.messageID);
+        })
+};
