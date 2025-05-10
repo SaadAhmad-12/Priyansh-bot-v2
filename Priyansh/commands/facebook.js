@@ -8,7 +8,7 @@ const url = require("url");
 module.exports = {
   config: {
     name: "facebook",
-    version: "1.0.0",
+    version: "1.1.0",
     hasPermssion: 0,
     credits: "Adapted by ChatGPT",
     description: "Auto-detect Facebook video links and send the video",
@@ -34,15 +34,15 @@ module.exports = {
     );
 
     try {
-      // Replace with any reliable Facebook download API
-      const apiUrl = `https://fb-video-downloader-api.vercel.app/api?url=${encodeURIComponent(fbUrl)}`;
-      const response = await axios.get(apiUrl);
+      // Updated and reliable downloader API
+      const apiUrl = `https://api.lekedev.com/api/facebook?url=${encodeURIComponent(fbUrl)}`;
+      const { data } = await axios.get(apiUrl);
 
-      if (!response.data || !response.data.success || !response.data.url) {
-        throw new Error("Unable to retrieve video. The API may be down or invalid link.");
+      if (!data || !data.success || !data.video_url) {
+        throw new Error("Could not get video URL from API.");
       }
 
-      const videoUrl = response.data.url;
+      const videoUrl = data.video_url;
       const filename = `fb_${Date.now()}.mp4`;
       const downloadDir = path.join(__dirname, "cache");
       const downloadPath = path.join(downloadDir, filename);
@@ -66,7 +66,7 @@ module.exports = {
           }
         }).on("error", (error) => {
           fs.unlinkSync(downloadPath);
-          reject(new Error(`Error downloading: ${error.message}`));
+          reject(new Error(`Download error: ${error.message}`));
         });
       });
 
@@ -82,13 +82,14 @@ module.exports = {
         }
       );
     } catch (err) {
-      console.error("Facebook download error:", err.message);
+      console.error("Facebook video error:", err.message);
       api.sendMessage(
         `❌ Error downloading Facebook video: ${err.message}`,
-        event.threadID
+        event.threadID,
+        () => api.unsendMessage(processingMessage.messageID)
       );
     }
   },
 
-  run: () => {}, // Required by command handler
+  run: () => {},
 };
