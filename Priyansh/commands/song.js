@@ -6,7 +6,7 @@ const ytSearch = require("yt-search");
 module.exports = {
   config: {
     name: "song",
-    version: "1.2.0",
+    version: "1.2.1",
     hasPermssion: 0,
     credits: "Priyansh Rajput (Fixed by ChatGPT)",
     description: "Download YouTube audio/video by name",
@@ -20,34 +20,39 @@ module.exports = {
   },
 
   run: async function ({ api, event, args }) {
-    if (!args.length) {
-      return api.sendMessage("❌ گانے کا نام لکھیں۔", event.threadID, event.messageID);
-    }
-
-    let type = "audio";
-    if (["audio", "video"].includes(args[args.length - 1].toLowerCase())) {
-      type = args.pop().toLowerCase();
-    }
-
-    const query = args.join(" ");
-    const waitMsg = await api.sendMessage("🔍 تلاش جاری ہے...", event.threadID, null, event.messageID);
-
     try {
+      if (!args.length) {
+        return api.sendMessage("❌ برائے مہربانی گانے کا نام لکھیں۔", event.threadID, event.messageID);
+      }
+
+      let type = "audio";
+      const lastArg = args[args.length - 1].toLowerCase();
+      if (["audio", "video"].includes(lastArg)) {
+        type = args.pop().toLowerCase();
+      }
+
+      const query = args.join(" ");
+      const waiting = await api.sendMessage("🔍 گانا تلاش کیا جا رہا ہے...", event.threadID, null, event.messageID);
+
       const searchResult = await ytSearch(query);
       const video = searchResult.videos[0];
-      if (!video) return api.sendMessage("❌ کوئی ویڈیو نہیں ملی۔", event.threadID, event.messageID);
 
-      const title = video.title.replace(/[^\w\s\-]/gi, "").substring(0, 40);
+      if (!video) {
+        return api.sendMessage("❌ ویڈیو نہیں ملی، دوبارہ کوشش کریں۔", event.threadID, event.messageID);
+      }
+
+      const safeTitle = video.title.replace(/[\/\\?%*:|"<>]/g, "").substring(0, 40);
       const fileExt = type === "audio" ? "mp3" : "mp4";
-      const fileName = `${title}_${Date.now()}.${fileExt}`;
-      const filePath = path.join(__dirname, "cache", fileName);
+      const fileName = `${safeTitle}_${Date.now()}.${fileExt}`;
+      const cacheDir = path.join(__dirname, "cache");
+      const filePath = path.join(cacheDir, fileName);
 
-      if (!fs.existsSync(path.join(__dirname, "cache"))) {
-        fs.mkdirSync(path.join(__dirname, "cache"));
+      if (!fs.existsSync(cacheDir)) {
+        fs.mkdirSync(cacheDir, { recursive: true });
       }
 
       const streamOptions = {
-        filter: type === "audio" ? "audioonly" : "videoandaudio",
+        filter: type === "audio" ? "audioonly" : "audioandvideo",
         quality: type === "audio" ? "highestaudio" : "highest"
       };
 
@@ -55,38 +60,39 @@ module.exports = {
       const fileStream = fs.createWriteStream(filePath);
 
       const timeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("⏳ ویڈیو ڈاؤنلوڈ میں بہت دیر لگ رہی ہے۔")), 30000); // 30 sec
+        setTimeout(() => reject(new Error("⏳ ڈاؤنلوڈ میں تاخیر ہو رہی ہے۔")), 40000);
       });
 
       const download = new Promise((resolve, reject) => {
         stream.pipe(fileStream);
-        fileStream.on("finish", resolve);
         stream.on("error", reject);
+        fileStream.on("finish", resolve);
         fileStream.on("error", reject);
       });
 
       await Promise.race([download, timeout]);
 
-      // Check size
-      const sizeMB = fs.statSync(filePath).size / (1024 * 1024);
+      const stats = fs.statSync(filePath);
+      const sizeMB = stats.size / (1024 * 1024);
+
       if (sizeMB > 25) {
         fs.unlinkSync(filePath);
-        return api.sendMessage("❌ فائل بہت بڑی ہے (25MB سے زیادہ)۔", event.threadID, event.messageID);
+        return api.sendMessage("❌ فائل کا سائز بہت زیادہ ہے (25MB سے زیادہ)۔", event.threadID, event.messageID);
       }
 
       api.setMessageReaction("✅", event.messageID, () => {}, true);
 
       await api.sendMessage({
-        body: `🎵 *${video.title}*\n🕒 *${video.timestamp}*\n🎧 Here is your ${type}:`,
+        body: `🎵 ${video.title}\n⏱️ دورانیہ: ${video.timestamp}\n🎧 آپ کا ${type} فائل تیار ہے۔`,
         attachment: fs.createReadStream(filePath)
       }, event.threadID, () => {
         fs.unlinkSync(filePath);
-        api.unsendMessage(waitMsg.messageID);
+        api.unsendMessage(waiting.messageID);
       }, event.messageID);
 
     } catch (err) {
-      console.error("ERROR:", err);
-      return api.sendMessage(`❌ Error: ${err.message}`, event.threadID, event.messageID);
+      console.error("Download Error:", err);
+      return api.sendMessage(`❌ مسئلہ: ${err.message}`, event.threadID, event.messageID);
     }
-  },
+  }
 };
